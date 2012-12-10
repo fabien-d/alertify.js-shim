@@ -1,0 +1,6 @@
+{
+	"name"         : "alertify",
+	"version"      : "0.2.12",
+	"main"         : "./alertify.min.js",
+	"dependencies" : {}
+}
