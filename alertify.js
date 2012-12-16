@@ -1,13 +1,13 @@
 /**
- * Alertify
+ * alertify
  * An unobtrusive customizable JavaScript notification system
  *
  * @author Fabien Doiron <fabien.doiron@gmail.com>
  * @copyright Fabien Doiron 2012
  * @license MIT <http://opensource.org/licenses/mit-license.php>
- * @link http://www.github.com/fabien-d
- * @module Alertify
- * @version 0.2.12
+ * @link http://fabien-d.github.com/alertify.js/
+ * @module alertify
+ * @version 0.3.0
  */
 
 /*global define*/
@@ -37,7 +37,7 @@
 				ok     : "<a href=\"#\" class=\"alertify-button alertify-button-ok\" id=\"alertify-ok\">{{ok}}</a>",
 				cancel : "<a href=\"#\" class=\"alertify-button alertify-button-cancel\" id=\"alertify-cancel\">{{cancel}}</a>"
 			},
-			input   : "<input type=\"text\" class=\"alertify-text\" id=\"alertify-text\">",
+			input   : "<div class=\"alertify-text-wrapper\"><input type=\"text\" class=\"alertify-text\" id=\"alertify-text\"></div>",
 			message : "<p class=\"alertify-message\">{{message}}</p>",
 			log     : "<article class=\"alertify-log{{class}}\">{{message}}</article>"
 		};
@@ -182,7 +182,8 @@
 			build : function (item) {
 				var html    = "",
 				    type    = item.type,
-				    message = item.message;
+				    message = item.message,
+				    css     = item.cssClass || "";
 
 				html += "<div class=\"alertify-dialog\">";
 
@@ -218,7 +219,7 @@
 					break;
 				}
 
-				elDialog.className = "alertify alertify-show alertify-" + type;
+				elDialog.className = "alertify alertify-show alertify-" + type + " " + css;
 				elCover.className  = "alertify-cover";
 				return html;
 			},
@@ -248,10 +249,11 @@
 			 * @param  {String}   type           Type of dialog to create
 			 * @param  {Function} fn             [Optional] Callback function
 			 * @param  {String}   placeholder    [Optional] Default value for prompt input field
+			 * @param  {String}   cssClass       [Optional] Class(es) to append to dialog box
 			 *
 			 * @return {Object}
 			 */
-			dialog : function (message, type, fn, placeholder) {
+			dialog : function (message, type, fn, placeholder, cssClass) {
 				// set the current active element
 				// this allows the keyboard focus to be resetted
 				// after the dialog box is closed
@@ -272,7 +274,7 @@
 					check();
 				}
 
-				queue.push({ type: type, message: message, callback: fn, placeholder: placeholder });
+				queue.push({ type: type, message: message, callback: fn, placeholder: placeholder, cssClass: cssClass });
 				if (!isopen) this.setup();
 
 				return this;
@@ -286,7 +288,11 @@
 			 * @return {Function}
 			 */
 			extend : function (type) {
-				return function (message, wait) { this.log(message, type, wait); };
+				if (typeof type !== "string") throw new Error("extend method must have exactly one paramter");
+				return function (message, wait) {
+					this.log(message, type, wait);
+					return this;
+				};
 			},
 
 			/**
@@ -419,7 +425,7 @@
 
 				isopen = true;
 				elDialog.innerHTML = this.build(item);
-				if (typeof item.placeholder === "string") $("alertify-text").value = item.placeholder;
+				if (typeof item.placeholder === "string" && item.placeholder !== "") $("alertify-text").value = item.placeholder;
 				this.addListeners(item.callback);
 			},
 
@@ -442,12 +448,12 @@
 		};
 
 		return {
-			alert   : function (message, fn) { _alertify.dialog(message, "alert", fn); return this; },
-			confirm : function (message, fn) { _alertify.dialog(message, "confirm", fn); return this; },
+			alert   : function (message, fn, cssClass) { _alertify.dialog(message, "alert", fn, "", cssClass); return this; },
+			confirm : function (message, fn, cssClass) { _alertify.dialog(message, "confirm", fn, "", cssClass); return this; },
 			extend  : _alertify.extend,
 			init    : _alertify.init,
 			log     : function (message, type, wait) { _alertify.log(message, type, wait); return this; },
-			prompt  : function (message, fn, placeholder) { _alertify.dialog(message, "prompt", fn, placeholder); return this; },
+			prompt  : function (message, fn, placeholder, cssClass) { _alertify.dialog(message, "prompt", fn, placeholder, cssClass); return this; },
 			success : function (message, wait) { _alertify.log(message, "success", wait); return this; },
 			error   : function (message, wait) { _alertify.log(message, "error", wait); return this; },
 			set     : function (args) { _alertify.set(args); },
