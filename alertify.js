@@ -7,7 +7,7 @@
  * @license MIT <http://opensource.org/licenses/mit-license.php>
  * @link http://fabien-d.github.com/alertify.js/
  * @module alertify
- * @version 0.3.0
+ * @version 0.3.1
  */
 
 /*global define*/
@@ -24,7 +24,7 @@
 		    isopen    = false,
 		    keys      = { ENTER: 13, ESC: 27, SPACE: 32 },
 		    queue     = [],
-		    $, elCallee, elCover, elDialog, elLog;
+		    $, elCallee, elCover, elDialog, elLog, getTransitionEvent;
 
 		/**
 		 * Markup pieces
@@ -40,6 +40,26 @@
 			input   : "<div class=\"alertify-text-wrapper\"><input type=\"text\" class=\"alertify-text\" id=\"alertify-text\"></div>",
 			message : "<p class=\"alertify-message\">{{message}}</p>",
 			log     : "<article class=\"alertify-log{{class}}\">{{message}}</article>"
+		};
+
+		/**
+		 * Return the proper transitionend event
+		 * @return {String}    Transition type string
+		 */
+		getTransitionEvent = function () {
+			var t,
+			    el = document.createElement("fakeelement"),
+			    transitions = {
+					"transition"       : "transitionend",
+					"OTransition"      : "otransitionend",
+					"MSTransition"     : "msTransitionEnd",
+					"MozTransition"    : "transitionend",
+					"WebkitTransition" : "webkitTransitionEnd"
+				};
+
+			for (t in transitions) {
+				if (el.style[t] !== undefined) return transitions[t];
+			}
 		};
 
 		/**
@@ -72,6 +92,18 @@
 			 * @type {Number}
 			 */
 			delay : 5000,
+
+			/**
+			 * Whether buttons are reversed (default is secondary/primary)
+			 * @type {Boolean}
+			 */
+			buttonReverse : false,
+
+			/**
+			 * Set the transition event on load
+			 * @type {[type]}
+			 */
+			transition : undefined,
 
 			/**
 			 * Set the proper button click events
@@ -173,6 +205,18 @@
 			},
 
 			/**
+			 * Append button HTML strings
+			 *
+			 * @param {String} secondary    The secondary button HTML string
+			 * @param {String} primary      The primary button HTML string
+			 *
+			 * @return {String}             The appended button HTML strings
+			 */
+			appendButtons : function (secondary, primary) {
+				return this.buttonReverse ? primary + secondary : secondary + primary;
+			},
+
+			/**
 			 * Build the proper message box
 			 *
 			 * @param  {Object} item    Current object in the queue
@@ -204,11 +248,11 @@
 
 				switch (type) {
 				case "confirm":
-					html = html.replace("{{buttons}}", dialogs.buttons.cancel + dialogs.buttons.ok);
+					html = html.replace("{{buttons}}", this.appendButtons(dialogs.buttons.cancel, dialogs.buttons.ok));
 					html = html.replace("{{ok}}", this.labels.ok).replace("{{cancel}}", this.labels.cancel);
 					break;
 				case "prompt":
-					html = html.replace("{{buttons}}", dialogs.buttons.cancel + dialogs.buttons.submit);
+					html = html.replace("{{buttons}}", this.appendButtons(dialogs.buttons.cancel, dialogs.buttons.submit));
 					html = html.replace("{{ok}}", this.labels.ok).replace("{{cancel}}", this.labels.cancel);
 					break;
 				case "alert":
@@ -228,17 +272,42 @@
 			 * Close the log messages
 			 *
 			 * @param  {Object} elem    HTML Element of log message to close
-			 * @param  {Number} wait    [optional] Time (in ms) to wait before automatically hiding the message
+			 * @param  {Number} wait    [optional] Time (in ms) to wait before automatically hiding the message, if 0 never hide
 			 *
 			 * @return {undefined}
 			 */
 			close : function (elem, wait) {
-				var timer = (wait && !isNaN(wait)) ? +wait : this.delay; // Unary Plus: +"2" === 2
+				// Unary Plus: +"2" === 2
+				var timer = (wait && !isNaN(wait)) ? +wait : this.delay,
+				    self  = this,
+				    removeElement;
+
 				this.bind(elem, "click", function () {
 					elLog.removeChild(elem);
 				});
+
+				// Remove element after transition is done
+				removeElement = function (event) {
+					event.stopPropagation();
+					// transitionend event gets fired for every property
+					// this ensures it only tries to remove the element once
+					if (event.propertyName === "opacity") elLog.removeChild(this);
+				};
+
+				// never close (until click) if wait is set to 0
+				if (wait === 0) return;
+
 				setTimeout(function () {
-					if (typeof elem !== "undefined" && elem.parentNode === elLog) elLog.removeChild(elem);
+					// ensure element exists
+					if (typeof elem !== "undefined" && elem.parentNode === elLog) {
+						// whether CSS transition exists
+						if (typeof self.transition !== "undefined") {
+							self.bind(elem, self.transition, removeElement);
+							elem.className += " alertify-log-hide";
+						} else {
+							elLog.removeChild(elem);
+						}
+					}
 				}, timer);
 			},
 
@@ -345,6 +414,8 @@
 				// this allows script to give it focus
 				// after the dialog is closed
 				document.body.setAttribute("tabindex", "0");
+				// set transition type
+				this.transition = getTransitionEvent();
 				// clean up init method
 				delete this.init;
 			},
