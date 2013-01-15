@@ -7,7 +7,7 @@
  * @license MIT <http://opensource.org/licenses/mit-license.php>
  * @link http://fabien-d.github.com/alertify.js/
  * @module alertify
- * @version 0.3.5
+ * @version 0.3.6
  */
 
 /*global define*/
@@ -24,7 +24,7 @@
 		    isopen    = false,
 		    keys      = { ENTER: 13, ESC: 27, SPACE: 32 },
 		    queue     = [],
-		    $, btnCancel, btnOK, btnReset, elCallee, elCover, elDialog, elLog, form, input, getTransitionEvent;
+		    $, btnCancel, btnOK, btnReset, btnFocus, elCallee, elCover, elDialog, elLog, form, input, getTransitionEvent;
 
 		/**
 		 * Markup pieces
@@ -33,7 +33,7 @@
 		dialogs = {
 			buttons : {
 				holder : "<nav class=\"alertify-buttons\">{{buttons}}</nav>",
-				submit : "<button type=\"submit\" class=\"alertify-button alertify-button-ok\" id=\"alertify-ok\" />{{ok}}</button>",
+				submit : "<button type=\"submit\" class=\"alertify-button alertify-button-ok\" id=\"alertify-ok\">{{ok}}</button>",
 				ok     : "<a href=\"#\" class=\"alertify-button alertify-button-ok\" id=\"alertify-ok\">{{ok}}</a>",
 				cancel : "<a href=\"#\" class=\"alertify-button alertify-button-cancel\" id=\"alertify-cancel\">{{cancel}}</a>"
 			},
@@ -97,6 +97,12 @@
 			 * @type {Boolean}
 			 */
 			buttonReverse : false,
+
+			/**
+			 * Which button should be focused by default
+			 * @type {String}	"ok" (default), "cancel", or "none"
+			 */
+			buttonFocus : "ok",
 
 			/**
 			 * Set the transition event on load
@@ -227,6 +233,8 @@
 
 				html += "<div class=\"alertify-dialog\">";
 
+				if (_alertify.buttonFocus === "none") html += "<a href=\"#\" id=\"alertify-noneFocus\" class=\"alertify-hidden\"></a>";
+
 				if (type === "prompt") html += "<form id=\"alertify-form\">";
 
 				html += "<article class=\"alertify-inner\">";
@@ -286,10 +294,11 @@
 				// This ensure it doens't block any element from being clicked
 				transitionDone = function (event) {
 					event.stopPropagation();
+					// unbind event so function only gets called once
+					self.unbind(this, self.transition, transitionDone);
+					// remove log message
 					elLog.removeChild(this);
 					if (!elLog.hasChildNodes()) elLog.className += " alertify-logs-hidden";
-					// unbind event so function only gets called once
-					self.unbind(elDialog, self.transition, transitionDone);
 				};
 				// this sets the hide class to transition out
 				// or removes the child if css transitions aren't supported
@@ -514,7 +523,7 @@
 					input.focus();
 					input.select();
 				}
-				else btnOK.focus();
+				else btnFocus.focus();
 			},
 
 			/**
@@ -546,6 +555,7 @@
 				btnReset  = $("alertify-resetFocus");
 				btnOK     = $("alertify-ok")     || undefined;
 				btnCancel = $("alertify-cancel") || undefined;
+				btnFocus  = (_alertify.buttonFocus === "cancel") ? btnCancel : ((_alertify.buttonFocus === "none") ? $("alertify-noneFocus") : btnOK),
 				input     = $("alertify-text")   || undefined;
 				form      = $("alertify-form")   || undefined;
 				// add placeholder value to the input field
